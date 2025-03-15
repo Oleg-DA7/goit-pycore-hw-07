@@ -9,38 +9,25 @@
 # Завдання 2
 # Для реалізації нового функціоналу також додайте функції обробники з наступними командами:
 # add-birthday - додаємо до контакту день народження в форматі DD.MM.YYYY                           +
-# show-birthday - показуємо день народження контакту
-# birthdays - повертає список користувачів, яких потрібно привітати по днях на наступному тижні
+# show-birthday - показуємо день народження контакту                                                +
+# birthdays - повертає список користувачів, яких потрібно привітати по днях на наступному тижні     +
 
 import re
 from decorators import error_decorator
 import datetime as dt
 import pandas as pd
 
-def next_birthday(birthday, date):
+@error_decorator(default_result=[None, None])
+def parse_input(user_input):    
+    cmd, *args = user_input.split()
+    cmd = cmd.strip().lower()
+    return cmd, *args
+
+def next_birthday(birthday, date):    
     if birthday.replace(year = date.year) >= date: 
         return birthday.replace(year = date.year)
     else:
         return birthday.replace(year = date.year + 1)
-
-def get_upcoming_birthdays(users):
-    result = []
-    now_date = dt.datetime.now().date()
-    users_df = pd.DataFrame(users)
-    users_df['birthday'] =  users_df['birthday'].apply(lambda x: dt.datetime.strptime(x, '%d-%m-%Y').date())
-    users_df['next_birthday'] = users_df['birthday'].apply(lambda x: next_birthday(x, now_date))
-    users_df['delta'] = users_df['birthday'].apply(lambda x: (next_birthday(x, now_date) - now_date).days)
-    for i, r in users_df.iterrows():
-        if r['delta'] <= 7:
-            congrats_date = r['next_birthday']
-            if r['next_birthday'].weekday() in [5, 6]: 
-                congrats_date = r['next_birthday'] + dt.timedelta(days=(7 - r['next_birthday'].weekday()))
-            result.append({'name': f'{r['name']}', 'congratulation_date': f'{dt.datetime.strftime(congrats_date, '%d-%m-%Y')}'})
-
-    return result
-
-
-
 
 class Field:
     def __init__(self, value):
@@ -130,7 +117,6 @@ class Contact():
     @error_decorator(default_result=None)  
     def show_birthday(self, args): # Додаемо Birthday        
         return f'{self.birthday.value.strftime('%d-%m-%Y')}'
-            
 
 class ContactList():
     def __init__(self):
@@ -174,12 +160,23 @@ class ContactList():
                 i.name.value = args[1]
                 result = f'Contact updated to {i}'
         return result
+    
+    def birthdays(self):
+        result = []
+        now_date = dt.datetime.now().date()
+        users = [{'name': i.name.value, 'birthday': i.birthday.value.strftime('%d-%m-%Y')} for i in self.contacts]
+        users_df = pd.DataFrame(users)
+        users_df['birthday'] =  users_df['birthday'].apply(lambda x: dt.datetime.strptime(x, '%d-%m-%Y').date())
+        users_df['next_birthday'] = users_df['birthday'].apply(lambda x: next_birthday(x, now_date))
+        users_df['delta'] = users_df['birthday'].apply(lambda x: (next_birthday(x, now_date) - now_date).days)
+        for i, r in users_df.iterrows():
+            if r['delta'] <= 7:
+                congrats_date = r['next_birthday']
+                if r['next_birthday'].weekday() in [5, 6]: 
+                    congrats_date = r['next_birthday'] + dt.timedelta(days=(7 - r['next_birthday'].weekday()))
+                result.append({'name': f'{r['name']}', 'congratulation_date': f'{dt.datetime.strftime(congrats_date, '%d-%m-%Y')}'})
+        return result
 
-@error_decorator(default_result=[None, None])
-def parse_input(user_input):    
-    cmd, *args = user_input.split()
-    cmd = cmd.strip().lower()
-    return cmd, *args
 
 def main():
     cl = ContactList()
@@ -210,7 +207,9 @@ def main():
                 if result != None:
                     print(result)   
             case "all":
-                cl.all_contacts()           
+                cl.all_contacts()      
+            case "birthdays" | "bs":
+                print(cl.birthdays())
 
 # Contact command -----------------------------------------
             case "add_phone":
